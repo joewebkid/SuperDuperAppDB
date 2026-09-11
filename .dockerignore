@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.py[cod]
+appdb.sqlite3
+uploads/
+.env
+.dev.vars
+

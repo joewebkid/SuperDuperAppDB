@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: superduper-appdb
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SESSION_HTTPS_ONLY
+        value: "true"
+      - key: TRUSTED_PROXY_HOSTS
+        value: 127.0.0.1,::1
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: REPORTS_PER_USER_PER_HOUR
+        value: "10"
+      - key: APPDB_ADMIN_GITHUB_LOGINS
+        value: joewebkid
+      - key: GITHUB_OAUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: OAUTH_CALLBACK_URL
+        sync: false
