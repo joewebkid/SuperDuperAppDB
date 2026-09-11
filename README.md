@@ -13,7 +13,7 @@ or the Super Duper Android client.
 ## Stack
 
 - **FastAPI** + **Jinja2** (server-rendered HTML, no SPA)
-- **SQLite** via SQLAlchemy 2.x
+- **SQLite / PostgreSQL** via SQLAlchemy 2.x
 - Plain CSS, no build step
 
 ## Run locally
