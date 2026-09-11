@@ -27,7 +27,7 @@ from app.auth import (
     safe_next_path,
     start_login,
 )
-from app.db import Base, Report, STATUS_PENDING, User, get_db
+from app.db import Base, Report, STATUS_PENDING, User, _database_url, get_db
 from app.main import app
 from app.main import _read_uploaded_screenshot, _save_uploaded_screenshot
 from starlette.datastructures import UploadFile
@@ -178,6 +178,13 @@ class OAuthUnitTests(TestCase):
         with self.assertRaises(HTTPException) as raised:
             require_csrf_token(request, "wrong")
         self.assertEqual(raised.exception.status_code, 403)
+
+    def test_generic_postgres_url_uses_psycopg_v3(self):
+        with patch.dict(os.environ, {"DATABASE_URL": "postgresql://user:pass@db/app"}):
+            self.assertEqual(
+                _database_url(),
+                "postgresql+psycopg://user:pass@db/app",
+            )
 
     def test_image_extension_cannot_hide_non_image_content(self):
         upload = UploadFile(filename="fake.png", file=io.BytesIO(b"<html>not an image"))

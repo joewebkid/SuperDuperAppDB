@@ -51,6 +51,13 @@ def _database_url() -> str:
     """
     url = os.environ.get("DATABASE_URL")
     if url:
+        # Managed Postgres providers commonly emit the generic SQLAlchemy URL.
+        # This project installs psycopg v3, whose explicit driver name avoids
+        # SQLAlchemy falling back to the uninstalled psycopg2 package.
+        if url.startswith("postgresql://"):
+            return "postgresql+psycopg://" + url.removeprefix("postgresql://")
+        if url.startswith("postgres://"):
+            return "postgresql+psycopg://" + url.removeprefix("postgres://")
         return url
     data_dir = Path("/data") if Path("/data").is_dir() else Path(__file__).resolve().parent.parent
     data_dir.mkdir(parents=True, exist_ok=True)
