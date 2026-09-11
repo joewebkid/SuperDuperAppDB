@@ -33,11 +33,19 @@ from .auth import (
     safe_next_path,
     start_login,
 )
+from .achievement_service import (
+    get_catalog,
+    publish_submission,
+    reject_submission,
+    submission_status,
+    submit_catalog,
+)
 from .db import (
     STATUS_APPROVED,
     STATUS_PENDING,
     STATUS_REJECTED,
     App,
+    AchievementSubmission,
     Report,
     User,
     get_db,
@@ -218,6 +226,36 @@ async def api_patch_submission(
     """Accept a strict anonymous patch proposal without exposing GitHub credentials."""
 
     return await submit_patch(request, payload, db)
+
+
+@app.get("/v1/catalog")
+def achievement_catalog(
+    request: Request,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)] = None,
+):
+    """Return the moderated, exact-revision achievement catalog."""
+
+    return get_catalog(request, response, db)
+
+
+@app.post("/v1/submissions")
+def achievement_submission(
+    request: Request,
+    payload: Annotated[dict, Body()],
+    db: Annotated[Session, Depends(get_db)] = None,
+):
+    """Accept an untrusted achievement draft for moderator review."""
+
+    return submit_catalog(request, payload, db)
+
+
+@app.get("/v1/submissions/{submission_id}", name="achievement_submission_status")
+def achievement_submission_status(
+    submission_id: str,
+    db: Annotated[Session, Depends(get_db)] = None,
+):
+    return submission_status(submission_id, db)
 
 
 def _approved_filter(query, user: User | None):
@@ -904,6 +942,12 @@ def admin_home(
         STATUS_APPROVED: db.query(Report).filter(Report.status == STATUS_APPROVED).count(),
         STATUS_REJECTED: db.query(Report).filter(Report.status == STATUS_REJECTED).count(),
     }
+    achievement_submissions = (
+        db.query(AchievementSubmission)
+        .order_by(AchievementSubmission.created_at.desc())
+        .limit(100)
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -912,8 +956,42 @@ def admin_home(
             "reports": reports,
             "selected_status": status,
             "counts": counts,
+            "achievement_submissions": achievement_submissions,
         },
     )
+
+
+@app.post("/admin/achievement-submissions/{submission_id}/publish")
+def admin_publish_achievement_submission(
+    submission_id: str,
+    request: Request,
+    admin: RequireAdminDep,
+    csrf_token: Annotated[str, Form()],
+    db: Annotated[Session, Depends(get_db)] = None,
+):
+    require_csrf_token(request, csrf_token)
+    row = db.get(AchievementSubmission, submission_id)
+    if row is None:
+        raise HTTPException(404, "Achievement submission not found")
+    publish_submission(row, admin, db)
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/achievement-submissions/{submission_id}/reject")
+def admin_reject_achievement_submission(
+    submission_id: str,
+    request: Request,
+    admin: RequireAdminDep,
+    csrf_token: Annotated[str, Form()],
+    reason: Annotated[str, Form()] = "",
+    db: Annotated[Session, Depends(get_db)] = None,
+):
+    require_csrf_token(request, csrf_token)
+    row = db.get(AchievementSubmission, submission_id)
+    if row is None:
+        raise HTTPException(404, "Achievement submission not found")
+    reject_submission(row, reason.strip(), admin, db)
+    return RedirectResponse(url="/admin", status_code=303)
 
 
 @app.post("/admin/reports/{report_id}/approve")
@@ -1165,7 +1243,6 @@ def api_claim_report(
     db.commit()
     return {"ok": True, "report": _serialise_report(r, full=True)}
 
-
 @app.post("/api/broken-reports/{report_id}/triage-result")
 def api_triage_result(
     report_id: int,
@@ -1206,3 +1283,4 @@ def api_triage_result(
         r.triage_notes = notes
     db.commit()
     return {"ok": True, "report": _serialise_report(r, full=True)}
+

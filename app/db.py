@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     LargeBinary,
     String,
     Text,
@@ -213,6 +214,46 @@ class PatchSubmission(Base):
     )
 
 
+class AchievementCatalog(Base):
+    """The single moderated achievement catalog served to emulator clients."""
+
+    __tablename__ = "achievement_catalog"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    catalog: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=lambda: {"formatVersion": 1, "sets": []}
+    )
+    etag: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, nullable=False
+    )
+
+
+class AchievementSubmission(Base):
+    """Untrusted community catalog draft awaiting moderator review."""
+
+    __tablename__ = "achievement_submissions"
+
+    # SHA-256 of the canonical catalog JSON also provides idempotency.
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    anonymous_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    catalog: Mapped[dict] = mapped_column(JSON, nullable=False)
+    client: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=STATUS_PENDING, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, nullable=False, index=True
+    )
+    reviewed_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    reviewer: Mapped[User | None] = relationship("User", foreign_keys=[reviewed_by_id])
+
+
 engine = create_engine(
     _database_url(),
     connect_args={"check_same_thread": False} if _database_url().startswith("sqlite") else {},
@@ -299,6 +340,8 @@ def get_db():
 __all__ = [
     "DEFAULT_ADMIN_GITHUB_LOGINS",
     "App",
+    "AchievementCatalog",
+    "AchievementSubmission",
     "Base",
     "PatchSubmission",
     "Report",

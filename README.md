@@ -76,7 +76,23 @@ appdb/
 
 ## Deploying
 
-This repository contains `render.yaml` for a free Render web service with
+### Self-hosted VPS and achievements
+
+`compose.vps.yaml` runs the application and a private PostgreSQL 16 instance.
+Only the application port is bound to localhost; `nginx.superduper.conf`
+publishes it through the host Nginx. Keep the real `.env` on the server with
+mode `0600` and never commit it. The same database stores compatibility
+reports, OAuth users, moderated achievement catalogs and pending achievement
+drafts.
+
+The Android achievement client uses `GET /v1/catalog` with ETag caching,
+`POST /v1/submissions` for bounded anonymous drafts and
+`GET /v1/submissions/{sha256}` for public moderation status. An authenticated
+administrator publishes or rejects drafts from `/admin`. Remote definitions
+remain exact-revision, data-only rules and cannot execute code or write guest
+memory.
+
+The repository root contains `render.yaml` for a free Render web service with
 a generated session secret and production-safe defaults. It expects a durable
 external PostgreSQL connection in `DATABASE_URL`; no Render disk is required.
 During Blueprint creation Render asks for the database URL, GitHub client ID,

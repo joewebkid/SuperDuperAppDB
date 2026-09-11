@@ -88,4 +88,43 @@
 {% else %}
 <p class="muted">Nothing in this bucket right now.</p>
 {% endif %}
+
+<h2>Achievement catalog drafts</h2>
+<p class="muted">Drafts are untrusted until reviewed. Publishing replaces sets with the same set id and updates the catalog atomically.</p>
+{% if achievement_submissions %}
+<div class="admin-list">
+  {% for item in achievement_submissions %}
+  <article class="admin-report report-{{ item.status }}">
+    <header>
+      <span class="status-badge status-{{ item.status }}">{{ item.status }}</span>
+      <strong>{{ item.catalog.sets | length }} set(s)</strong>
+      <span class="muted">{{ item.created_at | fmt_dt }}</span>
+      <code>{{ item.id[:12] }}…</code>
+    </header>
+    <table class="kv-table">
+      <tr><th>Set names</th><td>{{ item.catalog.sets | map(attribute='title') | join(', ') or 'Empty catalog' }}</td></tr>
+      <tr><th>Client</th><td><code>{{ item.client or '—' }}</code></td></tr>
+      {% if item.rejection_reason %}<tr><th>Reason</th><td>{{ item.rejection_reason }}</td></tr>{% endif %}
+    </table>
+    <div class="admin-actions">
+      {% if item.status != 'approved' %}
+      <form method="post" action="/admin/achievement-submissions/{{ item.id }}/publish">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <button type="submit" class="primary">Publish</button>
+      </form>
+      {% endif %}
+      {% if item.status != 'rejected' %}
+      <form method="post" action="/admin/achievement-submissions/{{ item.id }}/reject" class="reject-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+        <input type="text" name="reason" maxlength="500" placeholder="Rejection reason (optional)" />
+        <button type="submit">Reject</button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted">No achievement drafts yet.</p>
+{% endif %}
 {% endblock %}
